@@ -1,16 +1,15 @@
 @[has_globals]
 module file
 
-import log
 import os
 import venyowong.concurrent
 
 __global (
-	chans concurrent.SafeStructMap[Channel]
+	chans concurrent.AsyncMap[Channel]
 )
 
 fn init() {
-	chans = concurrent.SafeStructMap.new[Channel]()
+	chans = concurrent.AsyncMap.new[Channel]()
 }
 
 struct Channel {
@@ -45,14 +44,11 @@ pub fn (mut c Channel) close() {
 }
 
 pub fn (mut c Channel) consume() {
-	log.info("begin to consume lines for $c.path")
 	for {
 		l := <-c.ch or {
-			log.info("[$c.path] channel closed")
 			break
 		}
 		c.f.writeln(l) or {
-			log.error("[$c.path] failed to append log $err")
 			return
 		}
 		if c.ch.len == 0 {
@@ -70,8 +66,16 @@ pub fn append_by_chan(path string, lines ...string) {
 	c.append_lines(...lines)
 }
 
+pub fn close_channel(path string) {
+	mut c := chans.get(path) or {return}
+	c.close()
+	chans.remove(path)
+}
+
 pub fn close_channels() {
-	for mut c in chans.values() {
+	for k in chans.keys() {
+		mut c := chans.get(k) or {continue}
 		c.close()
+		chans.remove(k)
 	}
 }
