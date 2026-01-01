@@ -58,9 +58,17 @@ pub fn (mut c Channel) consume() {
 }
 
 pub fn append_by_chan(path string, lines ...string) {
-	c := chans.get_or_create(path, fn [path]() Channel {
-		return Channel.new(path) or {
-			panic("$path $err")
+	p := os.real_path(path)
+	dir := os.dir(p)
+	if !os.exists(dir) {
+		os.mkdir_all(dir) or {
+			panic("failed to create dir $dir : $err")
+		}
+	}
+	
+	c := chans.get_or_create(p, fn [p]() Channel {
+		return Channel.new(p) or {
+			panic("$p $err")
 		}
 	})
 	c.append_lines(...lines)
